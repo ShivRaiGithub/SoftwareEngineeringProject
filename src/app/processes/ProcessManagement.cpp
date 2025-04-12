@@ -2,11 +2,11 @@
 #include <iostream>
 #include <cstring>
 #include <sys/wait.h>
-// #include "../encryptDecrypt/Cryption.hpp"
+#include "../encryptDecrypt/Cryption.hpp"
 
 ProcessManagement::ProcessManagement(){}
 
-bool ProcessManagement::submitToQueen(std::unique_ptr<Task> task){
+bool ProcessManagement::submitToQueue(std::unique_ptr<Task> task){
     taskQueue.push(std::move(task));
     return true;
 }
