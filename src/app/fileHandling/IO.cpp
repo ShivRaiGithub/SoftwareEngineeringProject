@@ -9,13 +9,14 @@
     }
   }
 
-  std::fstream IO::getFileStream(){
-    return std::move(file_stream);
-  }
 
   IO::~IO()
   {
     if(file_stream.is_open()){
         file_stream.close();
     }
+  }
+
+  std::fstream IO::getFileStream(){
+    return std::move(file_stream);
   }
