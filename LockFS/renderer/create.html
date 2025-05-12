@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Create File</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input, textarea, button {
+      margin: 8px 0;
+      padding: 6px;
+    }
+    #status {
+      margin-top: 10px;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h2>Create File</h2>
+  <input id="filename" placeholder="Filename.txt" /><br>
+  <textarea id="content" rows="5" cols="40" placeholder="Enter file content..."></textarea><br>
+  <input id="filePassword" type="password" placeholder="Optional password" /><br>
+  <button onclick="save()">Save</button>
+  <button onclick="returnToProfile()">Return to Profile</button>
+  <div id="status"></div>
+  <script src="create.js"></script>
+</body>
+</html>

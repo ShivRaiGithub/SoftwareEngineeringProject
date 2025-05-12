@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .view-btn {
+            background-color: #2196F3;
+        }
+        .protect-btn {
+            background-color: #FF9800;
+        }
+        #fileList {
+            list-style-type: none;
+            padding: 0;
+        }
+        .file-item {
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-name {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .file-size {
+            color: #666;
+            margin-right: 10px;
+        }
+        .protected {
+            color: green;
+        }
+        .unprotected {
+            color: #FF9800;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px;
+            border-radius: 5px;
+        }
+        
+        .modal-title {
+            margin-top: 0;
+        }
+        
+        .modal-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        .modal-buttons {
+            text-align: right;
+        }
+        
+        .modal-cancel {
+            background-color: #ccc;
+        }
+        
+        .modal-confirm {
+            background-color: #4CAF50;
+        }
+        
+        .modal-delete {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h2>My Files</h2>
+    <button onclick="upload()">Upload File</button>
+    <button onclick="goToCreate()">Create File</button>
+    <ul id="fileList"></ul>
+    <div id="status"></div>
+    
+    <!-- Password Modal for Protection -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Set Password</h3>
+            <p id="modalMessage">Enter password to protect the file:</p>
+            <input type="password" id="passwordInput" class="modal-input" placeholder="Enter password">
+            <div class="modal-buttons">
+                <button class="modal-cancel" onclick="closeModal('passwordModal')">Cancel</button>
+                <button class="modal-confirm" id="confirmPassword">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Password Modal for Deletion -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Delete Protected File</h3>
+            <p id="deleteModalMessage">This file is password protected. Enter the password to delete:</p>
+            <input type="password" id="deletePasswordInput" class="modal-input" placeholder="Enter password">
+            <div class="modal-buttons">
+                <button class="modal-cancel" onclick="closeModal('deleteModal')">Cancel</button>
+                <button class="modal-delete" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Regular Delete Confirmation Modal -->
+    <div id="confirmDeleteModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Confirm Deletion</h3>
+            <p id="confirmDeleteMessage">Are you sure you want to delete this file?</p>
+            <div class="modal-buttons">
+                <button class="modal-cancel" onclick="closeModal('confirmDeleteModal')">Cancel</button>
+                <button class="modal-delete" id="proceedDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="profile.js"></script>
+</body>
+</html>
