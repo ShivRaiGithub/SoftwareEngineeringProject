@@ -5,9 +5,13 @@
    #include <queue>
    #include <memory>
    #include <mutex>
+   #include <semaphore.h>
 
    class ProcessManagement
    {
+        sem_t* itemsSemaphore;
+        sem_t* emptySlotsSemaphore;
+
     public: 
         ProcessManagement();
         bool submitToQueue(std::unique_ptr<Task> task);
@@ -27,6 +31,7 @@
         SharedMemory* sharedMem;
         int shmFd;
         const char* SHM_NAME = "/my_queue";
+        std::mutex queuelock;
     };
  
    #endif
