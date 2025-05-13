@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('api', {
   navigate: (page) => ipcRenderer.invoke('navigate', page),
   listFiles: () => ipcRenderer.invoke('listFiles'),
   deleteFile: (filename) => ipcRenderer.invoke('deleteFile', filename),
+  logout: () => ipcRenderer.invoke('logout'),
 });

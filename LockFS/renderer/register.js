@@ -5,3 +5,8 @@ async function register() {
   if (res.success) window.api.navigate('login.html');
   else document.getElementById('status').innerText = res.msg;
 }
+
+
+function goToLogin() {
+  window.api.navigate('login.html');
+}

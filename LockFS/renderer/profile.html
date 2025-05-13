@@ -5,130 +5,267 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Manager</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h2 {
-            color: #333;
-        }
-        button {
-            background-color: #4CAF50;
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            margin: 4px 2px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .delete-btn {
-            background-color: #f44336;
-        }
-        .view-btn {
-            background-color: #2196F3;
-        }
-        .protect-btn {
-            background-color: #FF9800;
-        }
-        #fileList {
-            list-style-type: none;
-            padding: 0;
-        }
-        .file-item {
-            border: 1px solid #ddd;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .file-name {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        .file-size {
-            color: #666;
-            margin-right: 10px;
-        }
-        .protected {
-            color: green;
-        }
-        .unprotected {
-            color: #FF9800;
-        }
-        #status {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f1f1f1;
-            border-radius: 4px;
-            min-height: 20px;
-        }
-        
-        /* Modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-        
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 300px;
-            border-radius: 5px;
-        }
-        
-        .modal-title {
-            margin-top: 0;
-        }
-        
-        .modal-input {
-            width: 100%;
-            padding: 8px;
-            margin: 10px 0;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        
-        .modal-buttons {
-            text-align: right;
-        }
-        
-        .modal-cancel {
-            background-color: #ccc;
-        }
-        
-        .modal-confirm {
-            background-color: #4CAF50;
-        }
-        
-        .modal-delete {
-            background-color: #f44336;
-        }
+body {
+  font-family: Arial, sans-serif;
+  background-color: white;
+  margin: 0;
+  padding: 20px;
+}
+
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.logo-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-title img {
+  height: 40px;
+  width: auto;
+}
+
+.logo-title h2 {
+  color: #0047FF;
+  font-size: 24px;
+  margin: 0;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 500px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+#logoutBtn {
+  background-color: #FFB800;
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Control Row */
+.top-controls {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.actions-left, .filters-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+button {
+  background-color: #0047FF;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+select {
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+#fileList {
+  list-style: none;
+  padding: 0;
+}
+
+.file-item {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.file-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem; /* Add horizontal space between items */
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap; /* Ensures responsiveness */
+}
+
+.file-name,
+.file-size,
+.file-date,
+.file-status {
+  flex: 1; /* Equal width columns */
+  min-width: 120px; /* Prevent wrapping on small values */
+}
+
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Action Buttons */
+.view-btn {
+  background-color: #0047FF;
+}
+
+.delete-btn {
+  background-color: #f44336;
+}
+
+.protect-btn {
+  background-color: #FFB800;
+}
+
+/* Status */
+#status {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+  min-height: 20px;
+  font-size: 14px;
+}
+
+/* Protected/unprotected label colors */
+.protected {
+  color: green;
+}
+
+.unprotected {
+  color: #FFB800;
+}
+#passwordModal,
+#deleteModal,
+#confirmDeleteModal {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
+  max-width: 90%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
+}
+
+.modal-input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-cancel,
+.modal-confirm,
+.modal-delete {
+  background-color: #0047FF;
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-delete {
+  background-color: #f44336;
+}
+
+
+
     </style>
 </head>
 <body>
-    <h2>My Files</h2>
-    <button onclick="upload()">Upload File</button>
-    <button onclick="goToCreate()">Create File</button>
-    <ul id="fileList"></ul>
-    <div id="status"></div>
+  <div class="main-header">
+    <div class="logo-title">
+      <img src="icon.png" alt="MyFile Icon" />
+      <h2>My Files</h2>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search files..." />
+      <button id="searchBtn">Search</button>
+      <button id="clearSearchBtn">Clear</button>
+    </div>
+
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="top-controls">
+    <div class="actions-left">
+      <button onclick="upload()">Upload File</button>
+      <button onclick="goToCreate()">Create File</button>
+    </div>
+
+    <div class="filters-right">
+      <select id="protectionFilter">
+        <option value="all">All Files</option>
+        <option value="protected">Protected Only</option>
+        <option value="unprotected">Unprotected Only</option>
+      </select>
+      <select id="sortBy">
+        <option value="name">Name</option>
+        <option value="size">Size</option>
+        <option value="date">Date</option>
+      </select>
+      <select id="sortOrder">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+    </div>
+  </div>
+
+  <ul id="fileList"></ul>
+  <div id="status"></div>
     
     <!-- Password Modal for Protection -->
     <div id="passwordModal" class="modal">
@@ -142,7 +279,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Password Modal for Deletion -->
     <div id="deleteModal" class="modal">
         <div class="modal-content">

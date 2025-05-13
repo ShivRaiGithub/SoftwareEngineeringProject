@@ -1,7 +1,126 @@
-<h2>Login</h2>
-<input id="username" placeholder="Username" />
-<input id="password" type="password" placeholder="Password" />
-<button onclick="login()">Login</button>
-<button onclick="goToRegister()">Register</button>
-<div id="status"></div>
-<script src="login.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      height: 100vh;
+      background: url('bg.png') no-repeat center center fixed;
+      background-size: cover;
+    }
+
+    .left-panel {
+      width: 60%;
+    }
+
+    .right-panel {
+      width: 40%;
+      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .form-container {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 320px;
+    }
+
+        .form-container img {
+        width: 100px;
+        height: auto;
+        margin-bottom: 20px;
+        object-fit: contain;
+        }
+
+
+    .form-container h2 {
+      font-size: 28px;
+      color: #0047FF;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .login-btn {
+      background-color: #0047FF;
+      color: white;
+    }
+
+    .register-link {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    .register-link span {
+      margin-right: 5px;
+    }
+
+    .register-link button {
+      background-color: #FFB800;
+      color: white;
+      width: auto;
+      padding: 6px 12px;
+    }
+
+    #status {
+      margin-top: 10px;
+      color: red;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="left-panel"></div>
+
+  <div class="right-panel">
+    <div class="form-container">
+      <img src="icon.png" alt="App Icon" />
+      <h2>Login</h2>
+      <input id="username" placeholder="Username" />
+      <input id="password" type="password" placeholder="Password" />
+      <button class="login-btn" onclick="login()">Login</button>
+      <div class="register-link">
+        <span>Not Registered?</span>
+        <button onclick="goToRegister()">Register</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

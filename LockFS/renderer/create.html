@@ -6,26 +6,146 @@
   <style>
     body {
       font-family: Arial, sans-serif;
+      margin: 0;
       padding: 20px;
+      background-color: #fff;
+      color: #000;
     }
-    input, textarea, button {
-      margin: 8px 0;
-      padding: 6px;
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
     }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .header-left img {
+        height: 40px;
+        width: auto;
+    }
+
+    .header-left h2 {
+      color: #0047FF;
+    }
+
+    .header-right a {
+      text-decoration: none;
+      color: #0047FF;
+      font-weight: bold;
+    }
+
+    .form-container {
+      max-width: 1000px;
+      margin: 40px auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group label {
+      width: 150px;
+      font-weight: bold;
+    }
+
+    .form-group input, .form-group textarea {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .btn-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    button {
+      background-color: #0047FF;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 0 10px;
+    }
+
+    button:hover {
+      background-color: #003ad6;
+    }
+
     #status {
-      margin-top: 10px;
+      margin-top: 20px;
+      text-align: center;
       color: green;
+      font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+      .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .form-group label {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
-  <h2>Create File</h2>
-  <input id="filename" placeholder="Filename.txt" /><br>
-  <textarea id="content" rows="5" cols="40" placeholder="Enter file content..."></textarea><br>
-  <input id="filePassword" type="password" placeholder="Optional password" /><br>
-  <button onclick="save()">Save</button>
-  <button onclick="returnToProfile()">Return to Profile</button>
-  <div id="status"></div>
+
+  <div class="header">
+    <div class="header-left">
+      <img src="icon.png" alt="App Icon">
+      <h2>Create File</h2>
+    </div>
+    <div class="header-right">
+      <a href="#" onclick="returnToProfile()">Back to Profile</a>
+    </div>
+  </div>
+
+  <div class="form-container">
+    <div class="form-group">
+      <label for="filename">File Name:</label>
+      <input id="filename" placeholder="example.txt" />
+    </div>
+
+    <div class="form-group">
+      <label for="filePassword">Password (optional):</label>
+      <input id="filePassword" type="password" placeholder="Optional password" />
+    </div>
+
+    <div class="form-group">
+      <label for="content">Content:</label>
+      <textarea id="content" placeholder="Enter file content..."></textarea>
+    </div>
+
+    <div class="btn-container">
+      <button onclick="save()">Save</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
   <script src="create.js"></script>
 </body>
 </html>
