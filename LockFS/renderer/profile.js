@@ -19,42 +19,55 @@ window.onload = async () => {
 function setupSearchAndFilterHandlers() {
   // Search functionality
   document.getElementById('searchBtn').addEventListener('click', function() {
-    currentSearchTerm = document.getElementById('searchInput').value.toLowerCase();
-    applyFiltersAndSort();
+    updateSearchAndApplyFilters();
   });
-  
+
   document.getElementById('searchInput').addEventListener('keyup', function(event) {
     if (event.key === 'Enter') {
-      currentSearchTerm = this.value.toLowerCase();
-      applyFiltersAndSort();
+      updateSearchAndApplyFilters();
     }
   });
-  
+
   document.getElementById('clearSearchBtn').addEventListener('click', function() {
     document.getElementById('searchInput').value = '';
     currentSearchTerm = '';
     applyFiltersAndSort();
   });
-  
-  // Protection filter
-  document.getElementById('protectionFilter').addEventListener('change', function() {
+
+  // Filter: Protection status
+  document.getElementById('protectionFilter').addEventListener('change', function () {
     currentProtectionFilter = this.value;
     applyFiltersAndSort();
   });
-  
-  // Sorting
-  document.getElementById('sortBy').addEventListener('change', function() {
+
+  // Sort by field
+  document.getElementById('sortBy').addEventListener('change', function () {
     currentSortBy = this.value;
     applyFiltersAndSort();
   });
-  
-  document.getElementById('sortOrder').addEventListener('change', function() {
+
+  // Sort order
+  document.getElementById('sortOrder').addEventListener('change', function () {
     currentSortOrder = this.value;
     applyFiltersAndSort();
   });
 }
 
+
+function updateSearchAndApplyFilters() {
+  currentSearchTerm = document.getElementById('searchInput').value.toLowerCase();
+  applyFiltersAndSort();
+}
+
 function applyFiltersAndSort() {
+
+  console.log('Applying filters:', {
+  currentSearchTerm,
+  currentProtectionFilter,
+  currentSortBy,
+  currentSortOrder,
+});
+
   let filteredFiles = [...allFiles];
   
   // Apply search filter
@@ -211,23 +224,7 @@ function setupModalHandlers() {
       await performDelete(currentFileToDelete);
     }
   });
-  
-  // Add handler for view password confirmation
-  document.getElementById('confirmViewPassword').addEventListener('click', async function() {
-    const password = document.getElementById('viewPasswordInput').value;
-    
-    if (!password) {
-      document.getElementById('viewModalMessage').innerText = 'Please enter the password.';
-      document.getElementById('viewModalMessage').style.color = 'red';
-      return;
-    }
-    
-    if (currentFileToView) {
-      closeModal('viewPasswordModal');
-      await verifyPasswordAndViewFile(currentFileToView, password);
-    }
-  });
-  
+
   document.getElementById('passwordInput').addEventListener('keyup', function(event) {
     if (event.key === "Enter") {
       document.getElementById('confirmPassword').click();
@@ -240,12 +237,6 @@ function setupModalHandlers() {
     }
   });
   
-  // Add key event for view password input
-  document.getElementById('viewPasswordInput').addEventListener('keyup', function(event) {
-    if (event.key === "Enter") {
-      document.getElementById('confirmViewPassword').click();
-    }
-  });
 }
 
 // Show view password modal
