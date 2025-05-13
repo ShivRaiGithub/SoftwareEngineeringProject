@@ -15,18 +15,18 @@ async function save() {
   if (password && res.success) {
     const protectRes = await window.api.protectFile(name, password);
     if (!protectRes.success) {
-      document.getElementById('status').innerText = "✅ File created but protection failed.";
+      document.getElementById('status').innerText = "File created but protection failed.";
       return;
     }
   }
   
   if (res.success) {
-    document.getElementById('status').innerText = "✅ File created successfully!";
+    document.getElementById('status').innerText = "File created successfully!";
     setTimeout(() => {
       window.api.navigate('profile.html');
     }, 1500);
   } else {
-    document.getElementById('status').innerText = "❌ Failed to save file.";
+    document.getElementById('status').innerText = "Failed to save file.";
   }
 }
 

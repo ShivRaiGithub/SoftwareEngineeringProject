@@ -148,14 +148,25 @@ select {
   background-color: #FFB800;
 }
 
-/* Status */
 #status {
-  margin-top: 20px;
-  padding: 10px;
-  background-color: #f1f1f1;
-  border-radius: 4px;
-  min-height: 20px;
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0047FF;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 6px;
   font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  opacity: 0;
+  transition: all 0.4s ease-in-out;
+}
+
+#status.show {
+  top: 20px;
+  opacity: 1;
 }
 
 /* Protected/unprotected label colors */

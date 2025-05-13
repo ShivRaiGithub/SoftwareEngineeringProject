@@ -28,7 +28,7 @@ window.onload = async () => {
   
   isProtected = fileInfo.protected;
   document.getElementById('protectionStatus').textContent = 
-    isProtected ? '🔒 This file is password protected' : '🔓 This file is not protected';
+    isProtected ? ' This file is password protected' : ' This file is not protected';
     
   if (isProtected) {
     // Show password form for protected files

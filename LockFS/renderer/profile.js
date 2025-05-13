@@ -16,6 +16,24 @@ window.onload = async () => {
   document.getElementById('logoutBtn').addEventListener('click', logout);
 };
 
+function showStatus(message, isError = false, duration = 3000) {
+  const statusEl = document.getElementById('status');
+  statusEl.innerText = message;
+  statusEl.style.backgroundColor = isError ? '#FF3B30' : '#0047FF';
+  
+  // Add class to show the status
+  statusEl.classList.add('show');
+
+  // Clear the status after `duration` ms
+  setTimeout(() => {
+    statusEl.classList.remove('show');
+    setTimeout(() => {
+      statusEl.innerText = '';
+    }, 400); // Wait for transition to complete
+  }, duration);
+}
+
+
 function setupSearchAndFilterHandlers() {
   // Search functionality
   document.getElementById('searchBtn').addEventListener('click', function() {
@@ -136,7 +154,7 @@ function displayFiles(files) {
         <span class="file-size">${file.size} bytes</span>
         <span class="file-date">${formattedDate}</span>
         <span class="file-status ${file.protected ? 'protected' : 'unprotected'}">
-          ${file.protected ? '🔒 Protected' : '🔓 Unprotected'}
+          ${file.protected ? ' Protected' : ' Unprotected'}
         </span>
       </div>
       <div class="file-actions">
@@ -182,7 +200,7 @@ async function loadFiles() {
     applyFiltersAndSort();
   } catch (error) {
     console.error('Error loading files:', error);
-    document.getElementById('status').innerText = `Error loading files: ${error.message || 'Unknown error'}`;
+    showStatus(`Error loading files: ${error.message || 'Unknown error'}`, true);
   }
 }
 
@@ -239,15 +257,6 @@ function setupModalHandlers() {
   
 }
 
-// Show view password modal
-function showViewPasswordModal(filename) {
-  currentFileToView = filename;
-  document.getElementById('viewModalMessage').innerText = `Enter password to view/edit file: ${filename}`;
-  document.getElementById('viewModalMessage').style.color = 'black';
-  document.getElementById('viewPasswordInput').value = '';
-  document.getElementById('viewPasswordModal').style.display = 'block';
-}
-
 // Verify password and view file
 async function verifyPasswordAndViewFile(filename, password) {
   try {
@@ -259,13 +268,14 @@ async function verifyPasswordAndViewFile(filename, password) {
       localStorage.setItem('fileContent', unlockResult.content);
       window.api.navigate('editor.html');
     } else {
-      document.getElementById('status').innerText = 'Incorrect password. Access denied.';
+      showStatus('Incorrect password. Access denied.', true);
     }
   } catch (error) {
     console.error('Password verification error:', error);
-    document.getElementById('status').innerText = `Error: ${error.message || 'Unknown error occurred'}`;
+    showStatus(`Error: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
+
 async function viewFile(filename) {
   try {
     // Always try to fetch the file content — let the backend handle protection
@@ -280,7 +290,7 @@ async function viewFile(filename) {
       }
 
       // Other failure cases
-      document.getElementById('status').innerText = fileContent.msg || 'Error accessing file';
+      showStatus(fileContent.msg || 'Error accessing file', true);
       return;
     }
 
@@ -290,7 +300,7 @@ async function viewFile(filename) {
     window.api.navigate('editor.html');
   } catch (error) {
     console.error('Error viewing file:', error);
-    document.getElementById('status').innerText = `Error: ${error.message || 'Unknown error occurred'}`;
+    showStatus(`Error: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
 
@@ -334,9 +344,9 @@ async function upload() {
   const res = await window.api.uploadFile();
   if (res.success) {
     await loadFiles(); // Reload all files
-    document.getElementById('status').innerText = 'File uploaded successfully';
+    showStatus('File uploaded successfully');
   }
-  else document.getElementById('status').innerText = 'Upload failed';
+  else showStatus('Upload failed', true);
 }
 
 async function protect(filename) {
@@ -345,7 +355,7 @@ async function protect(filename) {
 }
 
 async function protectFileWithPassword(filename, password) {
-  document.getElementById('status').innerText = 'Protecting file...';
+  showStatus('Protecting file...');
   
   try {
     console.log('Calling protectFile API...'); // Debug log
@@ -353,18 +363,18 @@ async function protectFileWithPassword(filename, password) {
     console.log('API response:', res); // Debug log
     
     if (res.success) {
-      document.getElementById('status').innerText = `File "${filename}" has been protected! 🔒`;
+      showStatus(`File "${filename}" has been protected!`);
       
       await loadFiles();
     } else {
       if (res.msg && res.msg.includes('Access denied')) {
-        document.getElementById('status').innerText = '⛔ ' + res.msg;
+        showStatus(res.msg, true);
       } else {
-        document.getElementById('status').innerText = res.msg || 'Protection failed';
+        showStatus(res.msg || 'Protection failed', true);
       }
     }
   } catch (error) {
-    document.getElementById('status').innerText = `Error: ${error.message || 'Unknown error occurred'}`;
+    showStatus(`Error: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
 
@@ -379,11 +389,11 @@ async function logout() {
     if (result.success) {
       localStorage.removeItem('currentFile');
       localStorage.removeItem('fileContent');
-      document.getElementById('status').innerText = 'Logging out...';
+      showStatus('Logging out...');
     }
   } catch (error) {
     console.error('Logout error:', error);
-    document.getElementById('status').innerText = `Error during logout: ${error.message || 'Unknown error occurred'}`;
+    showStatus(`Error during logout: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
 
@@ -398,31 +408,31 @@ async function verifyPasswordAndDelete(filename, password) {
     if (unlockResult.success) {
       await performDelete(filename);
     } else {
-      document.getElementById('status').innerText = 'Incorrect password. Deletion cancelled.';
+      showStatus('Incorrect password. Deletion cancelled.', true);
     }
   } catch (error) {
     console.error('Password verification error:', error);
-    document.getElementById('status').innerText = `Error: ${error.message || 'Unknown error occurred'}`;
+    showStatus(`Error: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
 
 async function performDelete(filename) {
-  document.getElementById('status').innerText = `Deleting ${filename}...`;
+  showStatus(`Deleting ${filename}...`);
   
   try {
     const res = await window.api.deleteFile(filename);
     if (res.success) {
-      document.getElementById('status').innerText = `File "${filename}" has been deleted!`;
+      showStatus(`File "${filename}" has been deleted!`);
       await loadFiles();
     } else {
       if (res.msg && res.msg.includes('Access denied')) {
-        document.getElementById('status').innerText = '⛔ ' + res.msg;
+        showStatus(res.msg, true);
       } else {
-        document.getElementById('status').innerText = res.msg || 'Delete failed';
+        showStatus(res.msg || 'Delete failed', true);
       }
     }
   } catch (error) {
     console.error('Delete error:', error);
-    document.getElementById('status').innerText = `Error: ${error.message || 'Unknown error occurred'}`;
+    showStatus(`Error: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
