@@ -5,7 +5,8 @@
 #include <iomanip>
 
 int executeCryption(const std::string &taskData){
-    Task task = Task::fromString(taskData);
+   Task task = Task::fromString(taskData);
+
     ReadEnv env;
 
     std::string envKey = env.getenv();

@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Debug encrypt_decrypt",
-            "type": "gdb",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/encrypt_decrypt",
             "args": [],
@@ -12,7 +12,7 @@
         },
         {
             "name": "Debug cryption (standalone)",
-            "type": "gdb",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/cryption",
             "args": ["your_task_data_here"],
