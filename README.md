@@ -9,3 +9,16 @@
 # aes algo
 1. change in Cryption.cpp only.
 2. also changing env file to 32 bits for aes to work.
+
+# setup instructions
+ Install OpenSSL
+Windows: Download OpenSSL Windows Installer
+
+Install to: C:\Program Files\OpenSSL-Win64\
+
+Linux: Use your package manager:
+
+bash
+Copy
+Edit
+sudo apt install libssl-dev
