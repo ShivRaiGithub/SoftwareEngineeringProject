@@ -1,8 +1,16 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -g -Wall -I. -Isrc/app/encryptDecrypt -Isrc/app/fileHandling -Isrc/app/processes
+CXXFLAGS = -std=c++17 -g -Wall \
+           -I. \
+           -Isrc/app/encryptDecrypt \
+           -Isrc/app/fileHandling \
+           -Isrc/app/processes \
+           -I"C:/Program Files/OpenSSL-Win64/include"
 
-MAIN_TARGET = encrypt_decrypt
-CRYPTION_TARGET = cryption
+LDFLAGS = -L"C:/Program Files/OpenSSL-Win64/lib/VC/x64/MD" -lssl -lcrypto
+
+
+MAIN_TARGET = encrypt_decrypt.exe
+CRYPTION_TARGET = cryption.exe
 
 MAIN_SRC = main.cpp \
            src/app/processes/ProcessManagement.cpp \
@@ -21,15 +29,15 @@ CRYPTION_OBJ = $(CRYPTION_SRC:.cpp=.o)
 all: $(MAIN_TARGET) $(CRYPTION_TARGET)
 
 $(MAIN_TARGET): $(MAIN_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(CRYPTION_TARGET): $(CRYPTION_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(MAIN_OBJ) $(CRYPTION_OBJ) $(MAIN_TARGET) $(CRYPTION_TARGET)
+	del /f /q $(subst /,\,$(MAIN_OBJ)) $(subst /,\,$(CRYPTION_OBJ)) $(MAIN_TARGET) $(CRYPTION_TARGET) 2>nul || exit 0
 
 .PHONY: clean all

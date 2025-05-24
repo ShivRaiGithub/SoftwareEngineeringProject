@@ -1,82 +1,56 @@
-#include "ProcessManagement.hpp"
 #include <iostream>
-#include <cstring>
-#include <sys/wait.h>
+#include "ProcessManagement.hpp"
+#include <windows.h>  // Windows process API
+#include <memory>
+#include <queue>
 #include "../encryptDecrypt/Cryption.hpp"
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
 
-ProcessManagement::ProcessManagement() {
-    itemsSemaphore = sem_open("/items_semaphore", O_CREAT, 0666, 0);
-    emptySlotsSemaphore = sem_open("/empty_slots_sempahore", O_CREAT, 0666, 1000);
-
-    shmFd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
-    ftruncate(shmFd, sizeof(SharedMemory));
-    sharedMem = static_cast<SharedMemory*>(
-        mmap(nullptr, sizeof(SharedMemory), PROT_READ | PROT_WRITE, MAP_SHARED, shmFd, 0));
-
-    sharedMem->front = 0;
-    sharedMem->rear = 0;
-    sharedMem->size = 0;
-}
+ProcessManagement::ProcessManagement() {}
 
 bool ProcessManagement::submitToQueue(std::unique_ptr<Task> task) {
-    sem_wait(emptySlotsSemaphore);
-    std::unique_lock<std::mutex> lock(queueLock);
-
-    if (sharedMem->size >= 1000) {
-        return false;
-    }
-
-    strncpy(sharedMem->tasks[sharedMem->rear], task->toString().c_str(), sizeof(sharedMem->tasks[sharedMem->rear]) - 1);
-    sharedMem->tasks[sharedMem->rear][sizeof(sharedMem->tasks[sharedMem->rear]) - 1] = '\0';
-
-    sharedMem->rear = (sharedMem->rear + 1) % 1000;
-    sharedMem->size += 1;
-
-    lock.unlock();
-    sem_post(itemsSemaphore);
-
-    int pid = fork();
-    if (pid < 0) {
-        return false;
-    } else if (pid == 0) {
-        std::cout << "Entering the child process" << std::endl;
-        executeTasks();
-        std::cout << "Exiting the child process" << std::endl;
-        _exit(0); // Proper exit in child
-    } else {
-        std::cout << "Entering the parent process" << std::endl;
-    }
-
+    taskQueue.push(std::move(task));
     return true;
 }
 
 void ProcessManagement::executeTasks() {
-    sem_wait(itemsSemaphore);
-    std::unique_lock<std::mutex> lock(queueLock);
+    while (!taskQueue.empty()) {
+        std::unique_ptr<Task> taskToExecute = std::move(taskQueue.front());
+        taskQueue.pop();
 
-    char taskStr[256];
-    strncpy(taskStr, sharedMem->tasks[sharedMem->front], sizeof(taskStr) - 1);
-    taskStr[sizeof(taskStr) - 1] = '\0';
+        std::string taskStr = taskToExecute->toString();
+        std::cout << "Executing task: " << taskStr << std::endl;
 
-    sharedMem->front = (sharedMem->front + 1) % 1000;
-    sharedMem->size -= 1;
+        // Build the command line: cryption.exe "taskDataString"
+        std::string command = "cryption.exe \"" + taskStr + "\"";
 
-    lock.unlock();
-    sem_post(emptySlotsSemaphore);
+        // Convert to LPSTR
+        STARTUPINFOA si{};
+        PROCESS_INFORMATION pi{};
+        si.cb = sizeof(si);
 
-    std::cout << "Executing child process" << std::endl;
-    executeCryption(taskStr);
-}
+        char cmdLine[1024];
+        strncpy_s(cmdLine, command.c_str(), sizeof(cmdLine) - 1);
 
-ProcessManagement::~ProcessManagement() {
-    munmap(sharedMem, sizeof(SharedMemory));
-    shm_unlink(SHM_NAME);
+        if (!CreateProcessA(
+            NULL,
+            cmdLine,
+            NULL,
+            NULL,
+            FALSE,
+            0,
+            NULL,
+            NULL,
+            &si,
+            &pi)) {
+            std::cerr << "CreateProcess failed (" << GetLastError() << ").\n";
+            continue;
+        }
 
-    sem_close(itemsSemaphore);
-    sem_unlink("/items_semaphore");
-    sem_close(emptySlotsSemaphore);
-    sem_unlink("/empty_slots_sempahore");
+        // Wait for child process to finish
+        WaitForSingleObject(pi.hProcess, INFINITE);
+
+        // Close process and thread handles
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
 }
