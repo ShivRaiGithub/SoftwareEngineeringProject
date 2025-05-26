@@ -23,7 +23,6 @@ function createWindow(htmlFile) {
   win.loadFile(`renderer/${htmlFile}`);
 }
 
-
 // Add metadata management functions
 function loadFileMetadata() {
   try {
@@ -50,6 +49,7 @@ function loadUserFiles() {
 
 app.whenReady().then(() => {
   fs.ensureDirSync('saved');
+  fs.ensureDirSync('vfs_temp'); // For temporary VFS operations
   userFiles = loadUserFiles();
   fileMetadata = loadFileMetadata();
   createWindow('login.html');
@@ -91,6 +91,112 @@ async function executeEncryptDecrypt(filename, operation, password = '') {
   }
 }
 
+// Helper function to execute VFS operations
+async function executeVFSCommand(command) {
+  const vfsPath = path.join(__dirname, 'vfs'); // Updated path
+  const fullCommand = `echo "${command}" | "${vfsPath}"`;
+  
+  try {
+    console.log(`Executing VFS: ${fullCommand}`);
+    const { stdout, stderr } = await execAsync(fullCommand);
+    console.log(`VFS output: ${stdout}`);
+    if (stderr) console.log(`VFS stderr: ${stderr}`);
+    return { success: true, output: stdout, error: stderr };
+  } catch (error) {
+    console.error(`VFS command failed: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+// VFS-specific helper functions
+async function vfsCreateFile(filename) {
+  return await executeVFSCommand(`create ${filename}`);
+}
+
+async function vfsWriteFile(filename, content) {
+  // Write content to temp file first
+  const tempPath = path.join('vfs_temp', `${filename}_temp.txt`);
+  fs.writeFileSync(tempPath, content, 'utf8');
+  
+  // Use VFS to write the content
+  const result = await executeVFSCommand(`write ${filename} ${content}`);
+  
+  // Clean up temp file
+  if (fs.existsSync(tempPath)) {
+    fs.unlinkSync(tempPath);
+  }
+  
+  return result;
+}
+
+async function vfsReadFile(filename) {
+  return await executeVFSCommand(`read ${filename}`);
+}
+
+async function vfsDeleteFile(filename) {
+  return await executeVFSCommand(`delete ${filename}`);
+}
+
+async function vfsListFiles() {
+  return await executeVFSCommand(`ls`);
+}
+
+async function vfsUpdateFile(filename, oldText, newText) {
+  // This will require a custom approach since VFS update is interactive
+  // We'll simulate the update process
+  const readResult = await vfsReadFile(filename);
+  if (!readResult.success) return readResult;
+  
+  // Extract content from read result
+  const content = readResult.output.replace('Content: ', '').trim();
+  const updatedContent = content.replace(oldText, newText);
+  
+  // Write the updated content back
+  return await vfsWriteFile(filename, updatedContent);
+}
+
+// NEW FUNCTION: Load all user files from VFS to saved folder
+async function loadUserFilesFromVFSToSaved(username) {
+  const userFileList = userFiles[username] || [];
+  console.log(`Loading ${userFileList.length} files from VFS to saved folder for user: ${username}`);
+  
+  for (const filename of userFileList) {
+    try {
+      // Read encrypted content from VFS
+      const vfsReadResult = await vfsReadFile(filename);
+      if (vfsReadResult.success) {
+        // Extract content from VFS output
+        const encryptedContent = vfsReadResult.output.replace('Content: ', '').trim();
+        
+        // Save to saved folder
+        const savedFilePath = path.join(__dirname, 'saved', filename);
+        fs.writeFileSync(savedFilePath, encryptedContent, 'utf8');
+        console.log(`Loaded ${filename} to saved folder`);
+      } else {
+        console.error(`Failed to read ${filename} from VFS:`, vfsReadResult.error);
+      }
+    } catch (error) {
+      console.error(`Error loading ${filename} from VFS:`, error.message);
+    }
+  }
+}
+
+// NEW FUNCTION: Clear saved folder (optional - for cleanup)
+function clearSavedFolder() {
+  try {
+    const savedDir = path.join(__dirname, 'saved');
+    const files = fs.readdirSync(savedDir);
+    for (const file of files) {
+      if (file !== '.gitkeep') { // Keep .gitkeep if you have one
+        fs.unlinkSync(path.join(savedDir, file));
+      }
+    }
+    console.log('Saved folder cleared');
+  } catch (error) {
+    console.error('Error clearing saved folder:', error.message);
+  }
+}
+
 ipcMain.handle('register', async (_, username, password) => {
   const users = loadUsers();
   if (users[username]) return { success: false, msg: 'User exists' };
@@ -103,11 +209,24 @@ ipcMain.handle('login', async (_, username, password) => {
   const users = loadUsers();
   if (!users[username]) return { success: false, msg: 'No such user' };
   const match = bcrypt.compareSync(password, users[username]);
-  if (match) currentUser = username;
-  return match ? { success: true } : { success: false, msg: 'Wrong password' };
+  
+  if (match) {
+    currentUser = username;
+    // LOAD ALL USER FILES FROM VFS TO SAVED FOLDER ON LOGIN
+    await loadUserFilesFromVFSToSaved(username);
+    console.log(`User ${username} logged in and files loaded to saved folder`);
+    return { success: true };
+  }
+  
+  return { success: false, msg: 'Wrong password' };
 });
 
 ipcMain.handle('logout', async () => {
+  if (currentUser) {
+    // Optional: Clear saved folder on logout for security
+    clearSavedFolder();
+    console.log(`User ${currentUser} logged out and saved folder cleared`);
+  }
   currentUser = null;
   win.loadFile('renderer/login.html');
   return { success: true };
@@ -123,24 +242,56 @@ ipcMain.handle('upload-file', async () => {
   
   const file = filePaths[0];
   const filename = path.basename(file);
-  const dest = path.join(__dirname, 'saved', filename);
+  const content = fs.readFileSync(file, 'utf8');
   
-  await fs.copy(file, dest);
+  // First encrypt the content
+  const tempFilename = filename + '.tmp';
+  const tempFilePath = path.join(__dirname, 'saved', tempFilename);
+  fs.writeFileSync(tempFilePath, content, 'utf8');
   
+  const encryptResult = await executeEncryptDecrypt(tempFilename, 'e');
+  if (!encryptResult.success) {
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    return { success: false, msg: 'Error encrypting file: ' + encryptResult.error };
+  }
+  
+  // Read encrypted content
+  const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
+  
+  // Store in VFS
+  const vfsCreateResult = await vfsCreateFile(filename);
+  if (!vfsCreateResult.success) {
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    return { success: false, msg: 'Error creating file in VFS: ' + vfsCreateResult.error };
+  }
+  
+  const vfsWriteResult = await vfsWriteFile(filename, encryptedContent);
+  if (!vfsWriteResult.success) {
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    return { success: false, msg: 'Error writing to VFS: ' + vfsWriteResult.error };
+  }
+  
+  // Clean up temp file and rename encrypted file to final name
+  if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+  
+  // Save encrypted content to saved folder with original filename
+  const finalSavedPath = path.join(__dirname, 'saved', filename);
+  fs.writeFileSync(finalSavedPath, encryptedContent, 'utf8');
+  
+  // Update user files and metadata
   if (!userFiles[currentUser]) {
     userFiles[currentUser] = [];
   }
   userFiles[currentUser].push(filename);
   saveUserFiles(userFiles);
   
-  // Add metadata for the uploaded file
-  const stats = fs.statSync(dest);
   fileMetadata[filename] = {
-    size: stats.size,
-    createdAt: stats.birthtime || new Date(),
+    size: content.length,
+    createdAt: new Date(),
     uploadedAt: new Date(),
     protected: false,
-    owner: currentUser
+    owner: currentUser,
+    storedInVFS: true
   };
   saveFileMetadata(fileMetadata);
   
@@ -148,25 +299,37 @@ ipcMain.handle('upload-file', async () => {
 });
 
 ipcMain.handle('createFile', async (_, filename, content) => {
-  const filePath = path.join(__dirname, 'saved', filename);
   const tempFilename = filename + '.tmp';
   const tempFilePath = path.join(__dirname, 'saved', tempFilename);
   
   try {
-    // First save content to temporary file
+    // First save content to temporary file and encrypt
     fs.writeFileSync(tempFilePath, content, 'utf8');
-
-    // Encrypt the file without password
     const encryptResult = await executeEncryptDecrypt(tempFilename, 'e');
     if (!encryptResult.success) {
       return { success: false, msg: 'Error encrypting file: ' + encryptResult.error };
     }
 
-    // Move encrypted file to final location
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Read encrypted content
+    const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
+
+    // Create and write to VFS
+    const vfsCreateResult = await vfsCreateFile(filename);
+    if (!vfsCreateResult.success) {
+      return { success: false, msg: 'Error creating file in VFS: ' + vfsCreateResult.error };
     }
-    fs.renameSync(tempFilePath, filePath);
+
+    const vfsWriteResult = await vfsWriteFile(filename, encryptedContent);
+    if (!vfsWriteResult.success) {
+      return { success: false, msg: 'Error writing to VFS: ' + vfsWriteResult.error };
+    }
+    
+    // Clean up temp file and save encrypted content with original filename
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    
+    // Save encrypted content to saved folder
+    const finalSavedPath = path.join(__dirname, 'saved', filename);
+    fs.writeFileSync(finalSavedPath, encryptedContent, 'utf8');
     
     // Update metadata and user files
     if (!userFiles[currentUser]) {
@@ -175,58 +338,60 @@ ipcMain.handle('createFile', async (_, filename, content) => {
     userFiles[currentUser].push(filename);
     saveUserFiles(userFiles);
     
-    const stats = fs.statSync(filePath);
     fileMetadata[filename] = {
-      size: stats.size,
-      createdAt: stats.birthtime || new Date(),
+      size: content.length,
+      createdAt: new Date(),
       uploadedAt: new Date(),
       protected: false,
-      owner: currentUser
+      owner: currentUser,
+      storedInVFS: true
     };
     saveFileMetadata(fileMetadata);
     
     return { success: true };
   } catch (err) {
-    // Clean up temp file on error
+    return { success: false, msg: 'Error creating file: ' + err.message };
+  } finally {
+    // Clean up temp file
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
-    return { success: false, msg: 'Error creating file: ' + err.message };
   }
 });
 
 ipcMain.handle('listFiles', async () => {
   const userFileList = userFiles[currentUser] || [];
-  const files = fs.readdirSync('saved')
-    .filter(name => userFileList.includes(name));
-    return Promise.all(files.map(async name => {
-    const filePath = path.join('saved', name);
-    const stats = fs.statSync(filePath);
-    
-    // Update metadata for existing files
-    if (!fileMetadata[name]) {
-      fileMetadata[name] = {
-        size: stats.size,
-        createdAt: stats.birthtime || stats.mtime,
-        uploadedAt: stats.mtime,
-        protected: false,
-        owner: currentUser
-      };
-      saveFileMetadata(fileMetadata);
-    } else {      // Update existing metadata
-      fileMetadata[name].size = stats.size;
-      saveFileMetadata(fileMetadata);
+  
+  // Get files from VFS
+  const vfsListResult = await vfsListFiles();
+  if (!vfsListResult.success) {
+    return { success: false, msg: 'Error listing VFS files: ' + vfsListResult.error };
+  }
+  
+  // Parse VFS output to get file info
+  const vfsFiles = [];
+  const lines = vfsListResult.output.split('\n');
+  for (const line of lines) {
+    if (line.includes('(size:')) {
+      const match = line.match(/^(.+?)\s+\(size:\s+(\d+),\s+cursor:\s+(\d+)\)$/);
+      if (match) {
+        const [, name, size, cursor] = match;
+        if (userFileList.includes(name.trim())) {
+          vfsFiles.push({
+            name: name.trim(),
+            size: parseInt(size),
+            protected: fileMetadata[name.trim()]?.protected || false,
+            date: fileMetadata[name.trim()]?.uploadedAt || new Date(),
+            createdAt: fileMetadata[name.trim()]?.createdAt || new Date(),
+            owner: fileMetadata[name.trim()]?.owner || currentUser,
+            storedInVFS: true
+          });
+        }
+      }
     }
-    
-    return {
-      name,
-      size: stats.size,
-      protected: fileMetadata[name].protected,
-      date: fileMetadata[name].uploadedAt,
-      createdAt: fileMetadata[name].createdAt,
-      owner: fileMetadata[name].owner
-    };
-  }));
+  }
+  
+  return vfsFiles;
 });
 
 ipcMain.handle('deleteFile', async (_, filename) => {
@@ -235,23 +400,28 @@ ipcMain.handle('deleteFile', async (_, filename) => {
     return { success: false, msg: 'Access denied: You do not own this file' };
   }
   
-  const filePath = path.join(__dirname, 'saved', filename);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    
-    userFiles[currentUser] = userFileList.filter(file => file !== filename);
-    saveUserFiles(userFiles);
-    
-    // Remove metadata for the deleted file
-    if (fileMetadata[filename]) {
-      delete fileMetadata[filename];
-      saveFileMetadata(fileMetadata);
-    }
-    
-    return { success: true };
-  } else {
-    return { success: false, msg: 'File not found' };
+  // Delete from VFS
+  const vfsDeleteResult = await vfsDeleteFile(filename);
+  if (!vfsDeleteResult.success) {
+    return { success: false, msg: 'Error deleting from VFS: ' + vfsDeleteResult.error };
   }
+  
+  // Delete from saved folder
+  const savedFilePath = path.join(__dirname, 'saved', filename);
+  if (fs.existsSync(savedFilePath)) {
+    fs.unlinkSync(savedFilePath);
+  }
+  
+  // Update user files and metadata
+  userFiles[currentUser] = userFileList.filter(file => file !== filename);
+  saveUserFiles(userFiles);
+  
+  if (fileMetadata[filename]) {
+    delete fileMetadata[filename];
+    saveFileMetadata(fileMetadata);
+  }
+  
+  return { success: true };
 });
 
 ipcMain.handle('get-file-content', async (_, filename, password = null) => {
@@ -260,51 +430,37 @@ ipcMain.handle('get-file-content', async (_, filename, password = null) => {
     return { success: false, msg: 'Access denied: You do not own this file' };
   }
   
-  const filePath = path.join(__dirname, 'saved', filename);
-  
-  if (!fs.existsSync(filePath)) {
-    return { success: false, msg: 'File not found' };
-  }
-  
   try {
     // Check if password is needed
     if (fileMetadata[filename]?.protected && !password) {
       return { success: false, msg: 'File is password protected' };
     }
 
-    // For both protected and unprotected files, we use a temp file
-    const tempFilename = filename + '.decrypt_tmp';
-    const tempFilePath = path.join(__dirname, 'saved', tempFilename);
-    
-    try {
-      // Copy encrypted file to temp location
-      fs.copyFileSync(filePath, tempFilePath);
-      
-      // Decrypt with or without password based on protection status
-      const result = await executeEncryptDecrypt(
-        tempFilename,
-        'd',
-        fileMetadata[filename]?.protected ? password : ''
-      );
-      
-      if (!result.success) {
-        return { 
-          success: false, 
-          msg: fileMetadata[filename]?.protected ? 
-            'Wrong password or decryption failed' : 
-            'Failed to decrypt file'
-        };
-      }
-      
-      // Read decrypted content
-      const decryptedContent = fs.readFileSync(tempFilePath, 'utf8');
-      return { success: true, content: decryptedContent };
-    } finally {
-      // Always clean up temp file
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
+    // The encrypted file should already be in saved folder from login
+    const savedFilePath = path.join(__dirname, 'saved', filename);
+    if (!fs.existsSync(savedFilePath)) {
+      return { success: false, msg: 'File not found in saved folder' };
     }
+    
+    // Decrypt with or without password based on protection status
+    const result = await executeEncryptDecrypt(
+      filename,
+      'd',
+      fileMetadata[filename]?.protected ? password : ''
+    );
+    
+    if (!result.success) {
+      return { 
+        success: false, 
+        msg: fileMetadata[filename]?.protected ? 
+          'Wrong password or decryption failed' : 
+          'Failed to decrypt file'
+      };
+    }
+    
+    // Read decrypted content
+    const decryptedContent = fs.readFileSync(savedFilePath, 'utf8');
+    return { success: true, content: decryptedContent };
   } catch (err) {
     return { success: false, msg: 'Error reading file: ' + err.message };
   }
@@ -321,12 +477,11 @@ ipcMain.handle('save-file', async (_, filename, content) => {
     return { success: false, msg: 'This is a protected file. Use save-protected-file instead.' };
   }
 
-  const filePath = path.join(__dirname, 'saved', filename);
   const tempFilename = filename + '.tmp';
   const tempFilePath = path.join(__dirname, 'saved', tempFilename);
   
   try {
-    // Save content to temporary file
+    // Save content to temporary file and encrypt
     fs.writeFileSync(tempFilePath, content, 'utf8');
     
     // Encrypt without password
@@ -335,26 +490,35 @@ ipcMain.handle('save-file', async (_, filename, content) => {
       return { success: false, msg: 'Error encrypting file: ' + result.error };
     }
     
-    // Replace original file with encrypted version
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Read encrypted content and save to VFS and saved folder
+    const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
+    
+    const vfsWriteResult = await vfsWriteFile(filename, encryptedContent);
+    if (!vfsWriteResult.success) {
+      return { success: false, msg: 'Error writing to VFS: ' + vfsWriteResult.error };
     }
-    fs.renameSync(tempFilePath, filePath);
+    
+    // Clean up temp file and save encrypted content with original filename
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    
+    // Update the encrypted file in saved folder
+    const savedFilePath = path.join(__dirname, 'saved', filename);
+    fs.writeFileSync(savedFilePath, encryptedContent, 'utf8');
     
     // Update metadata
-    const stats = fs.statSync(filePath);
     if (fileMetadata[filename]) {
-      fileMetadata[filename].size = stats.size;
+      fileMetadata[filename].size = content.length;
       saveFileMetadata(fileMetadata);
     }
     
     return { success: true };
   } catch (err) {
-    // Clean up temp file on error
+    return { success: false, msg: 'Error saving file: ' + err.message };
+  } finally {
+    // Clean up temp file
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
-    return { success: false, msg: 'Error saving file: ' + err.message };
   }
 });
 
@@ -372,8 +536,6 @@ ipcMain.handle('save-protected-file', async (_, filename, content, password) => 
     return { success: false, msg: 'Password is required for protected files' };
   }
   
-  const filePath = path.join(__dirname, 'saved', filename);
-  
   try {
     // Create a temporary file for the content
     const tempFilename = filename + '.tmp';
@@ -389,16 +551,21 @@ ipcMain.handle('save-protected-file', async (_, filename, content, password) => 
         return { success: false, msg: 'Error encrypting file: ' + result.error };
       }
       
-      // If encryption succeeded, replace the original file
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      // Read encrypted content and save to VFS and saved folder
+      const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
+      
+      const vfsWriteResult = await vfsWriteFile(filename, encryptedContent);
+      if (!vfsWriteResult.success) {
+        return { success: false, msg: 'Error writing to VFS: ' + vfsWriteResult.error };
       }
-      fs.renameSync(tempFilePath, filePath);
+      
+      // Update the encrypted file in saved folder
+      const savedFilePath = path.join(__dirname, 'saved', filename);
+      fs.writeFileSync(savedFilePath, encryptedContent, 'utf8');
       
       // Update file metadata
-      const stats = fs.statSync(filePath);
       if (fileMetadata[filename]) {
-        fileMetadata[filename].size = stats.size;
+        fileMetadata[filename].size = content.length;
         saveFileMetadata(fileMetadata);
       }
       
@@ -420,21 +587,50 @@ ipcMain.handle('protect-file', async (event, filename, password) => {
     return { success: false, msg: 'Access denied: You do not own this file' };
   }
   
-  const filePath = path.join(__dirname, 'saved', filename);
-  
-  if (!fs.existsSync(filePath)) {
-    return { success: false, msg: 'File not found' };
-  }
-
-  try {    // Check if file is already protected using metadata
+  try {
+    // Check if file is already protected using metadata
     if (fileMetadata[filename] && fileMetadata[filename].protected) {
       return { success: false, msg: 'File is already protected' };
     }
-      // Encrypt the file with the external tool
-    const result = await executeEncryptDecrypt(filename, 'e', password);
-    if (!result.success) {
-      return { success: false, msg: 'Error protecting file: ' + result.error };
+
+    // File should already be in saved folder, decrypt it first
+    const savedFilePath = path.join(__dirname, 'saved', filename);
+    if (!fs.existsSync(savedFilePath)) {
+      return { success: false, msg: 'File not found in saved folder' };
     }
+    
+    // First decrypt the current content (unprotected)
+    const decryptResult = await executeEncryptDecrypt(filename, 'd');
+    if (!decryptResult.success) {
+      return { success: false, msg: 'Error decrypting current file: ' + decryptResult.error };
+    }
+    
+    // Read decrypted content
+    const originalContent = fs.readFileSync(savedFilePath, 'utf8');
+    
+    // Create temp file and re-encrypt with password
+    const tempFilename = filename + '.tmp';
+    const tempFilePath = path.join(__dirname, 'saved', tempFilename);
+    
+    fs.writeFileSync(tempFilePath, originalContent, 'utf8');
+    const encryptResult = await executeEncryptDecrypt(tempFilename, 'e', password);
+    if (!encryptResult.success) {
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      return { success: false, msg: 'Error encrypting with password: ' + encryptResult.error };
+    }
+    
+    // Read newly encrypted content and save back to VFS and saved folder
+    const protectedContent = fs.readFileSync(tempFilePath, 'utf8');
+    
+    const vfsWriteResult = await vfsWriteFile(filename, protectedContent);
+    if (!vfsWriteResult.success) {
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      return { success: false, msg: 'Error writing protected file to VFS: ' + vfsWriteResult.error };
+    }
+    
+    // Clean up temp file and update saved folder
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    fs.writeFileSync(savedFilePath, protectedContent, 'utf8');
     
     // Update metadata to reflect protected status
     if (fileMetadata[filename]) {
@@ -448,52 +644,32 @@ ipcMain.handle('protect-file', async (event, filename, password) => {
   }
 });
 
-
 ipcMain.handle('unlock-file', async (_, filename, password) => {
   const userFileList = userFiles[currentUser] || [];
   if (!userFileList.includes(filename)) {
     return { success: false, msg: 'Access denied: You do not own this file' };
   }
   
-  const filePath = path.join(__dirname, 'saved', filename);
-  
-  if (!fs.existsSync(filePath)) {
-    return { success: false, msg: 'File not found' };
-  }
-
   try {
-    // Create a temporary copy of the encrypted file for decryption
-    const tempFilename = filename + '.decrypt_tmp';
-    const tempFilePath = path.join(__dirname, 'saved', tempFilename);
+    // File should already be in saved folder
+    const savedFilePath = path.join(__dirname, 'saved', filename);
+    if (!fs.existsSync(savedFilePath)) {
+      return { success: false, msg: 'File not found in saved folder' };
+    }
     
-    // Copy the encrypted file to temp location
-    fs.copyFileSync(filePath, tempFilePath);
-    
-    // Decrypt the temporary file
-    const result = await executeEncryptDecrypt(tempFilename, 'd', password);
+    // Decrypt with password
+    const result = await executeEncryptDecrypt(filename, 'd', password);
     if (!result.success) {
-      // Clean up temp file on failure
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
       return { success: false, msg: 'Wrong password or decryption failed' };
     }
     
     // Read the decrypted content
-    const decryptedContent = fs.readFileSync(tempFilePath, 'utf8');
+    const decryptedContent = fs.readFileSync(savedFilePath, 'utf8');
     console.log('Successfully decrypted file');
-    
-    // Clean up the temporary decrypted file
-    fs.unlinkSync(tempFilePath);
     
     return { success: true, content: decryptedContent };
   } catch (err) {
     console.error('Error unlocking file:', err);
-    // Clean up any temp files on error
-    const tempFilePath = path.join(__dirname, 'saved', filename + '.decrypt_tmp');
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
     return { success: false, msg: `Error unlocking file: ${err.message}` };
   }
 });
