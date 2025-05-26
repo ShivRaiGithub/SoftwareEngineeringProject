@@ -1,0 +1,5 @@
+TO COMPILE AND RUN THE PROGRAM:
+
+1. g++ main.cpp vfs_disk.cpp vfs_utils.cpp vfs_fileops.cpp vfs_shell.cpp -o vfs.exe -mconsole
+
+2./vfs
