@@ -68,5 +68,29 @@
     "uploadedAt": "2025-05-26T10:28:51.511Z",
     "protected": true,
     "owner": "sid"
+  },
+  "t.txt": {
+    "size": 4,
+    "createdAt": "2025-05-26T17:34:45.016Z",
+    "uploadedAt": "2025-05-26T17:34:45.016Z",
+    "protected": false,
+    "owner": "abcd",
+    "storedInVFS": true
+  },
+  "c.txt": {
+    "size": 4,
+    "createdAt": "2025-05-26T17:54:49.330Z",
+    "uploadedAt": "2025-05-26T17:54:49.330Z",
+    "protected": false,
+    "owner": "abcd",
+    "storedInVFS": true
+  },
+  "e.txt": {
+    "size": 4,
+    "createdAt": "2025-05-26T18:02:13.074Z",
+    "uploadedAt": "2025-05-26T18:02:13.074Z",
+    "protected": false,
+    "owner": "abcd",
+    "storedInVFS": true
   }
 }

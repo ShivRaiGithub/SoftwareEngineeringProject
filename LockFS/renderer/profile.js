@@ -301,12 +301,12 @@ async function viewFile(filename) {
 }
 
 // Debug function to help troubleshoot file protection status
-function debugFileProtection() {
-  console.log("All files with protection status:");
-  allFiles.forEach(file => {
-    console.log(`${file.name}: Protected = ${file.protected}`);
-  });
-}
+// function debugFileProtection() {
+//   console.log("All files with protection status:");
+//   allFiles.forEach(file => {
+//     console.log(`${file.name}: Protected = ${file.protected}`);
+//   });
+// }
 
 function showPasswordModal(filename) {
   currentFileToProtect = filename;

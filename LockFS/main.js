@@ -93,8 +93,8 @@ async function executeEncryptDecrypt(filename, operation, password = '') {
 
 // Helper function to execute VFS operations
 async function executeVFSCommand(command) {
-  const vfsPath = path.join(__dirname, 'vfs'); // Updated path
-  const fullCommand = `echo "${command}" | "${vfsPath}"`;
+  const vfsPath = path.join('..','VFS', './vfs');
+  const fullCommand = `"${vfsPath}" ${command}`;
   
   try {
     console.log(`Executing VFS: ${fullCommand}`);
@@ -236,6 +236,7 @@ ipcMain.handle('navigate', (_, page) => {
   win.loadFile(`renderer/${page}`);
 });
 
+// Modify the upload-file handler
 ipcMain.handle('upload-file', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({ properties: ['openFile'] });
   if (canceled || filePaths.length === 0) return { success: false };
@@ -258,17 +259,23 @@ ipcMain.handle('upload-file', async () => {
   // Read encrypted content
   const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
   
-  // Store in VFS
-  const vfsCreateResult = await vfsCreateFile(filename);
-  if (!vfsCreateResult.success) {
-    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-    return { success: false, msg: 'Error creating file in VFS: ' + vfsCreateResult.error };
+  // Execute VFS commands
+  const vfsPath = path.join('..','VFS', './vfs');;
+  
+  // Create file in VFS
+  const createCmd = `"${vfsPath}" create ${filename}`;
+  try {
+    await execAsync(createCmd);
+  } catch (error) {
+    return { success: false, msg: 'Error creating file in VFS: ' + error.message };
   }
   
-  const vfsWriteResult = await vfsWriteFile(filename, encryptedContent);
-  if (!vfsWriteResult.success) {
-    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-    return { success: false, msg: 'Error writing to VFS: ' + vfsWriteResult.error };
+  // Write content to VFS
+  const writeCmd = `"${vfsPath}" write ${filename} "${encryptedContent}"`;
+  try {
+    await execAsync(writeCmd);
+  } catch (error) {
+    return { success: false, msg: 'Error writing to VFS: ' + error.message };
   }
   
   // Clean up temp file and rename encrypted file to final name
@@ -298,6 +305,7 @@ ipcMain.handle('upload-file', async () => {
   return { success: true };
 });
 
+// Modify createFile handler
 ipcMain.handle('createFile', async (_, filename, content) => {
   const tempFilename = filename + '.tmp';
   const tempFilePath = path.join(__dirname, 'saved', tempFilename);
@@ -312,20 +320,18 @@ ipcMain.handle('createFile', async (_, filename, content) => {
 
     // Read encrypted content
     const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
-
-    // Create and write to VFS
-    const vfsCreateResult = await vfsCreateFile(filename);
-    if (!vfsCreateResult.success) {
-      return { success: false, msg: 'Error creating file in VFS: ' + vfsCreateResult.error };
-    }
-
-    const vfsWriteResult = await vfsWriteFile(filename, encryptedContent);
-    if (!vfsWriteResult.success) {
-      return { success: false, msg: 'Error writing to VFS: ' + vfsWriteResult.error };
+    
+    // Create file in VFS
+    const createResult = await executeVFSCommand(`create ${filename}`);
+    if (!createResult.success) {
+      return { success: false, msg: 'Error creating file in VFS: ' + createResult.error };
     }
     
-    // Clean up temp file and save encrypted content with original filename
-    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    // Write content to VFS
+    const writeResult = await executeVFSCommand(`write ${filename} ${encryptedContent}`);
+    if (!writeResult.success) {
+      return { success: false, msg: 'Error writing to VFS: ' + writeResult.error };
+    }
     
     // Save encrypted content to saved folder
     const finalSavedPath = path.join(__dirname, 'saved', filename);
