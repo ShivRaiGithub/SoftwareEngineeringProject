@@ -14,10 +14,59 @@
     "owner": "sid"
   },
   "n": {
-    "size": 1,
-    "createdAt": "2025-05-26T09:57:05.207Z",
-    "uploadedAt": "2025-05-26T09:57:05.208Z",
-    "protected": false,
+    "size": 32,
+    "createdAt": "2025-05-26T10:44:35.026Z",
+    "uploadedAt": "2025-05-26T10:44:35.026Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "l": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:29:53.801Z",
+    "uploadedAt": "2025-05-26T10:29:53.801Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "k": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:16:28.741Z",
+    "uploadedAt": "2025-05-26T10:16:28.727Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "p": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:32:33.632Z",
+    "uploadedAt": "2025-05-26T10:32:33.622Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "o": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:24:53.968Z",
+    "uploadedAt": "2025-05-26T10:24:53.968Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "u": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:25:34.079Z",
+    "uploadedAt": "2025-05-26T10:25:34.079Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "j": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:26:58.427Z",
+    "uploadedAt": "2025-05-26T10:26:58.424Z",
+    "protected": true,
+    "owner": "sid"
+  },
+  "g": {
+    "size": 64,
+    "createdAt": "2025-05-26T10:28:51.511Z",
+    "uploadedAt": "2025-05-26T10:28:51.511Z",
+    "protected": true,
     "owner": "sid"
   }
 }

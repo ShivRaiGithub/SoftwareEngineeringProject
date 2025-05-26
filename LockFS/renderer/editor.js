@@ -86,15 +86,18 @@ async function unlockFile() {
   try {
     showStatus('Decrypting file...', 'info');
     
+    // Use unlockFile handler to decrypt the file
     const result = await window.api.unlockFile(currentFile, password);
+    
     if (result.success) {
-      currentPassword = password;
+      currentPassword = password;  // Save password for later use (e.g., saving changes)
       document.getElementById('passwordForm').style.display = 'none';
       document.getElementById('fileContent').value = result.content;
       originalContent = result.content;
       document.getElementById('editorContainer').style.display = 'block';
       showStatus('File unlocked successfully', 'success');
     } else {
+      document.getElementById('filePassword').value = '';  // Clear password on failure
       showStatus(result.msg || 'Failed to unlock file', 'error');
     }
   } catch (error) {
