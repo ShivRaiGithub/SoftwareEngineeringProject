@@ -149,18 +149,32 @@ ipcMain.handle('upload-file', async () => {
 
 ipcMain.handle('createFile', async (_, filename, content) => {
   const filePath = path.join(__dirname, 'saved', filename);
+  const tempFilename = filename + '.tmp';
+  const tempFilePath = path.join(__dirname, 'saved', tempFilename);
   
   try {
-    // Save the file directly without encryption
-    fs.writeFileSync(filePath, content, 'utf8');
+    // First save content to temporary file
+    fs.writeFileSync(tempFilePath, content, 'utf8');
+
+    // Encrypt the file without password
+    const encryptResult = await executeEncryptDecrypt(tempFilename, 'e');
+    if (!encryptResult.success) {
+      return { success: false, msg: 'Error encrypting file: ' + encryptResult.error };
+    }
+
+    // Move encrypted file to final location
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    fs.renameSync(tempFilePath, filePath);
     
+    // Update metadata and user files
     if (!userFiles[currentUser]) {
       userFiles[currentUser] = [];
     }
     userFiles[currentUser].push(filename);
     saveUserFiles(userFiles);
     
-    // Add metadata for the new file
     const stats = fs.statSync(filePath);
     fileMetadata[filename] = {
       size: stats.size,
@@ -173,6 +187,10 @@ ipcMain.handle('createFile', async (_, filename, content) => {
     
     return { success: true };
   } catch (err) {
+    // Clean up temp file on error
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
     return { success: false, msg: 'Error creating file: ' + err.message };
   }
 });
@@ -249,40 +267,44 @@ ipcMain.handle('get-file-content', async (_, filename, password = null) => {
   }
   
   try {
-    // Check if file is protected using metadata
-    if (fileMetadata[filename] && fileMetadata[filename].protected) {
-      if (!password) {
-        return { success: false, msg: 'File is password protected' };
+    // Check if password is needed
+    if (fileMetadata[filename]?.protected && !password) {
+      return { success: false, msg: 'File is password protected' };
+    }
+
+    // For both protected and unprotected files, we use a temp file
+    const tempFilename = filename + '.decrypt_tmp';
+    const tempFilePath = path.join(__dirname, 'saved', tempFilename);
+    
+    try {
+      // Copy encrypted file to temp location
+      fs.copyFileSync(filePath, tempFilePath);
+      
+      // Decrypt with or without password based on protection status
+      const result = await executeEncryptDecrypt(
+        tempFilename,
+        'd',
+        fileMetadata[filename]?.protected ? password : ''
+      );
+      
+      if (!result.success) {
+        return { 
+          success: false, 
+          msg: fileMetadata[filename]?.protected ? 
+            'Wrong password or decryption failed' : 
+            'Failed to decrypt file'
+        };
       }
       
-      // For protected files, use temp file and decrypt
-      const tempFilename = filename + '.decrypt_tmp';
-      const tempFilePath = path.join(__dirname, 'saved', tempFilename);
-      
-      try {
-        // Copy file for decryption
-        fs.copyFileSync(filePath, tempFilePath);
-        
-        // Decrypt with password
-        const decryptResult = await executeEncryptDecrypt(tempFilename, 'd', password);
-        if (!decryptResult.success) {
-          return { success: false, msg: 'Wrong password or decryption failed' };
-        }
-        
-        // Read decrypted content
-        const fileContent = fs.readFileSync(tempFilePath, 'utf8');
-        return { success: true, content: fileContent };
-      } finally {
-        // Clean up temp file
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
-        }
+      // Read decrypted content
+      const decryptedContent = fs.readFileSync(tempFilePath, 'utf8');
+      return { success: true, content: decryptedContent };
+    } finally {
+      // Always clean up temp file
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
       }
     }
-    
-    // For unprotected files, read directly
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    return { success: true, content: fileContent };
   } catch (err) {
     return { success: false, msg: 'Error reading file: ' + err.message };
   }
@@ -294,18 +316,32 @@ ipcMain.handle('save-file', async (_, filename, content) => {
     return { success: false, msg: 'Access denied: You do not own this file' };
   }
   
+  // Check if file is protected
+  if (fileMetadata[filename] && fileMetadata[filename].protected) {
+    return { success: false, msg: 'This is a protected file. Use save-protected-file instead.' };
+  }
+
   const filePath = path.join(__dirname, 'saved', filename);
+  const tempFilename = filename + '.tmp';
+  const tempFilePath = path.join(__dirname, 'saved', tempFilename);
   
   try {
-    // Check if file is protected using metadata
-    if (fileMetadata[filename] && fileMetadata[filename].protected) {
-      return { success: false, msg: 'This is a protected file. Use save-protected-file instead.' };
-    }
-
-    // For unprotected files, save directly without encryption
-    fs.writeFileSync(filePath, content, 'utf8');
+    // Save content to temporary file
+    fs.writeFileSync(tempFilePath, content, 'utf8');
     
-    // Update file metadata
+    // Encrypt without password
+    const result = await executeEncryptDecrypt(tempFilename, 'e');
+    if (!result.success) {
+      return { success: false, msg: 'Error encrypting file: ' + result.error };
+    }
+    
+    // Replace original file with encrypted version
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    fs.renameSync(tempFilePath, filePath);
+    
+    // Update metadata
     const stats = fs.statSync(filePath);
     if (fileMetadata[filename]) {
       fileMetadata[filename].size = stats.size;
@@ -314,6 +350,10 @@ ipcMain.handle('save-file', async (_, filename, content) => {
     
     return { success: true };
   } catch (err) {
+    // Clean up temp file on error
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
     return { success: false, msg: 'Error saving file: ' + err.message };
   }
 });

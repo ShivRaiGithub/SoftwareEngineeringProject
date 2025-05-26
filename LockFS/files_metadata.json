@@ -28,10 +28,10 @@
     "owner": "sid"
   },
   "k": {
-    "size": 64,
-    "createdAt": "2025-05-26T10:16:28.741Z",
-    "uploadedAt": "2025-05-26T10:16:28.727Z",
-    "protected": true,
+    "size": 32,
+    "createdAt": "2025-05-26T10:51:11.245Z",
+    "uploadedAt": "2025-05-26T10:51:11.312Z",
+    "protected": false,
     "owner": "sid"
   },
   "p": {
