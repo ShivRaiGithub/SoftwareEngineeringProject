@@ -33,7 +33,6 @@ function showStatus(message, isError = false, duration = 3000) {
   }, duration);
 }
 
-
 function setupSearchAndFilterHandlers() {
   // Search functionality
   document.getElementById('searchBtn').addEventListener('click', function() {
@@ -71,20 +70,18 @@ function setupSearchAndFilterHandlers() {
   });
 }
 
-
 function updateSearchAndApplyFilters() {
   currentSearchTerm = document.getElementById('searchInput').value.toLowerCase();
   applyFiltersAndSort();
 }
 
 function applyFiltersAndSort() {
-
   console.log('Applying filters:', {
-  currentSearchTerm,
-  currentProtectionFilter,
-  currentSortBy,
-  currentSortOrder,
-});
+    currentSearchTerm,
+    currentProtectionFilter,
+    currentSortBy,
+    currentSortOrder,
+  });
 
   let filteredFiles = [...allFiles];
   
@@ -231,7 +228,7 @@ function setupModalHandlers() {
     
     if (currentFileToDelete) {
       closeModal('deleteModal');
-      // Verify password before deletion
+      // Verify password before deletion by attempting to unlock the file
       await verifyPasswordAndDelete(currentFileToDelete, password);
     }
   });
@@ -254,7 +251,6 @@ function setupModalHandlers() {
       document.getElementById('confirmDelete').click();
     }
   });
-  
 }
 
 // Verify password and view file
@@ -303,7 +299,6 @@ async function viewFile(filename) {
     showStatus(`Error: ${error.message || 'Unknown error occurred'}`, true);
   }
 }
-
 
 // Debug function to help troubleshoot file protection status
 function debugFileProtection() {
@@ -403,6 +398,7 @@ async function deleteFile(filename, isProtected) {
 
 async function verifyPasswordAndDelete(filename, password) {
   try {
+    // Use the unlock function to verify the password
     const unlockResult = await window.api.unlockFile(filename, password);
     
     if (unlockResult.success) {

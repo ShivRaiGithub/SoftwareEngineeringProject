@@ -9,16 +9,17 @@
 namespace fs = std::filesystem;
 
 void printUsage(const char* programName) {
-    std::cout << "Usage: " << programName << " <directory/filename> <action> <key>" << std::endl;
+    std::cout << "Usage: " << programName << " <directory/filename> <action> [key]" << std::endl;
     std::cout << "  directory/filename: Path to directory or single file to process" << std::endl;
     std::cout << "  action: 'encrypt' or 'decrypt' (or 'e' or 'd')" << std::endl;
-    std::cout << "  key: Encryption/decryption key" << std::endl;
+    std::cout << "  key (optional): Encryption/decryption key (default: LockBox)" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  " << programName << " /path/to/directory encrypt mykey123" << std::endl;
-    std::cout << "  " << programName << " document.txt decrypt mykey123" << std::endl;
-    std::cout << "  " << programName << " ./files e secretkey" << std::endl;
+    std::cout << "  " << programName << " document.txt decrypt" << std::endl;
+    std::cout << "  " << programName << " ./files e" << std::endl;
 }
+
 
 void clearKey(char* key) {
     if (key) {
@@ -53,8 +54,8 @@ void processFile(const std::string& filePath, Action taskAction, ProcessManageme
 }
 
 int main(int argc, char* argv[]) {
-    // Check for correct number of arguments
-    if (argc != 4) {
+    // Allow 3 or 4 arguments
+    if (argc < 3 || argc > 4) {
         std::cerr << "Error: Incorrect number of arguments." << std::endl;
         printUsage(argv[0]);
         return 1;
@@ -62,9 +63,21 @@ int main(int argc, char* argv[]) {
 
     std::string path = argv[1];
     std::string action = argv[2];
-    std::string key = argv[3];
+    std::string key;
 
-    // Convert action to lowercase for case-insensitive comparison
+    // If key is provided, use it. Otherwise, default to "LockBox"
+    if (argc == 4) {
+        key = argv[3];
+        if (key.empty()) {
+            std::cerr << "Error: Key cannot be empty!" << std::endl;
+            return 1;
+        }
+        clearKey(argv[3]); // Clear the original key from argv
+    } else {
+        key = "LockBox"; // Default key
+    }
+
+    // Convert action to lowercase
     std::transform(action.begin(), action.end(), action.begin(), ::tolower);
 
     // Validate action
@@ -74,15 +87,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Validate key
-    if (key.empty()) {
-        std::cerr << "Error: Key cannot be empty!" << std::endl;
-        return 1;
-    }
-
-    // Clear the key from argv for security
-    clearKey(argv[3]);
-
     try {
         fs::path fsPath(path);
         Action taskAction = getActionType(action);
@@ -91,22 +95,18 @@ int main(int argc, char* argv[]) {
 
         if (fs::exists(fsPath)) {
             if (fs::is_directory(fsPath)) {
-                // Process directory
                 std::cout << "Processing directory: " << fsPath << std::endl;
-                
+
                 for (const auto& entry : fs::recursive_directory_iterator(fsPath)) {
                     if (entry.is_regular_file()) {
-                        // Skip hidden files (starting with .)
                         if (entry.path().filename().string()[0] == '.') {
                             continue;
                         }
-                        
                         processFile(entry.path().string(), taskAction, processManagement);
                         fileCount++;
                     }
                 }
             } else if (fs::is_regular_file(fsPath)) {
-                // Process single file
                 std::cout << "Processing file: " << fsPath << std::endl;
                 processFile(fsPath.string(), taskAction, processManagement);
                 fileCount = 1;
