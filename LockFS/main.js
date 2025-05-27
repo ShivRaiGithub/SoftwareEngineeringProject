@@ -72,7 +72,7 @@ function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users));
 }
 
-// Helper function to execute encryption/decryption (for frontend display only)
+// Helper function to execute encryption/decryption
 async function executeEncryptDecrypt(filename, operation, password = '') {
   const cryptionPath = path.join('..', 'Cryption', 'encrypt_decrypt');
   const filePath = path.join('.', 'saved', filename);
@@ -90,7 +90,7 @@ async function executeEncryptDecrypt(filename, operation, password = '') {
   }
 }
 
-// Helper function to execute VFS operations
+// Helper function to execute VFS operations (for show only)
 async function executeVFSCommand(command) {
   const vfsPath = path.join('..', 'VFS', './vfs');
   const fullCommand = `"${vfsPath}" ${command}`;
@@ -110,7 +110,7 @@ async function executeVFSCommand(command) {
   }
 }
 
-// VFS-specific helper functions (for plain content only)
+// VFS-specific helper functions (for show only)
 async function vfsCreateFile(filename) {
   return await executeVFSCommand(`create "${filename}"`);
 }
@@ -140,59 +140,88 @@ async function vfsUpdateFile(filename, oldText, newText) {
   return await executeVFSCommand(`update "${filename}" "${escapedOldText}" "${escapedNewText}"`);
 }
 
-// Helper function to encrypt content in memory (for frontend display only)
-async function encryptContentInMemory(content, password = '') {
-  const tempFilename = `temp_${Date.now()}.tmp`;
-  const tempFilePath = path.join(__dirname, 'saved', tempFilename);
+// Helper function to encrypt file content and save to disk
+async function encryptAndSaveFile(filename, content, password = '') {
+  const localFilePath = path.join(__dirname, 'saved', filename);
   
   try {
-    // Write content to temp file
-    fs.writeFileSync(tempFilePath, content, 'utf8');
+    // First write the plain content to the file
+    fs.writeFileSync(localFilePath, content, 'utf8');
     
-    // Encrypt the temp file
-    const result = await executeEncryptDecrypt(tempFilename, 'e', password);
+    // Then encrypt the file in place using the external tool
+    const result = await executeEncryptDecrypt(filename, 'e', password);
     if (!result.success) {
+      // If encryption fails, remove the plain text file
+      if (fs.existsSync(localFilePath)) {
+        fs.unlinkSync(localFilePath);
+      }
       return { success: false, error: result.error };
     }
     
-    // Read encrypted content
-    const encryptedContent = fs.readFileSync(tempFilePath, 'utf8');
-    return { success: true, content: encryptedContent };
+    console.log(`File ${filename} encrypted and saved successfully`);
+    return { success: true };
   } catch (error) {
-    return { success: false, error: error.message };
-  } finally {
-    // Clean up temp file
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
+    // Clean up on error
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
     }
+    return { success: false, error: error.message };
   }
 }
 
-// Helper function to decrypt content in memory (for frontend display only)
-async function decryptContentInMemory(encryptedContent, password = '') {
-  const tempFilename = `temp_${Date.now()}.tmp`;
-  const tempFilePath = path.join(__dirname, 'saved', tempFilename);
+// Helper function to decrypt file content from disk
+async function decryptAndReadFile(filename, password = '') {
+  const localFilePath = path.join(__dirname, 'saved', filename);
   
   try {
-    // Write encrypted content to temp file
-    fs.writeFileSync(tempFilePath, encryptedContent, 'utf8');
+    if (!fs.existsSync(localFilePath)) {
+      return { success: false, error: 'File not found' };
+    }
     
-    // Decrypt the temp file
-    const result = await executeEncryptDecrypt(tempFilename, 'd', password);
+    // Decrypt the file in place using the external tool
+    const result = await executeEncryptDecrypt(filename, 'd', password);
     if (!result.success) {
       return { success: false, error: result.error };
     }
     
-    // Read decrypted content
-    const decryptedContent = fs.readFileSync(tempFilePath, 'utf8');
-    return { success: true, content: decryptedContent };
+    // Read the decrypted content
+    const content = fs.readFileSync(localFilePath, 'utf8');
+    
+    // Re-encrypt the file to maintain security
+    const reEncryptResult = await executeEncryptDecrypt(filename, 'e', password);
+    if (!reEncryptResult.success) {
+      console.warn(`Warning: Failed to re-encrypt file ${filename} after reading`);
+    }
+    
+    console.log(`File ${filename} decrypted and read successfully`);
+    return { success: true, content: content };
   } catch (error) {
     return { success: false, error: error.message };
-  } finally {
-    // Clean up temp file
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
+  }
+}
+
+// Helper function to save plain text files (non-protected)
+function savePlainTextFile(filename, content) {
+  const localFilePath = path.join(__dirname, 'saved', filename);
+  try {
+    fs.writeFileSync(localFilePath, content, 'utf8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Helper function to read plain text files (non-protected)
+function readPlainTextFile(filename) {
+  const localFilePath = path.join(__dirname, 'saved', filename);
+  try {
+    if (!fs.existsSync(localFilePath)) {
+      return { success: false, error: 'File not found' };
     }
+    const content = fs.readFileSync(localFilePath, 'utf8');
+    return { success: true, content: content };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -231,7 +260,7 @@ ipcMain.handle('navigate', (_, page) => {
   win.loadFile(`renderer/${page}`);
 });
 
-// Upload file handler - Store in both local storage and VFS
+// Upload file handler - Store with encryption always
 ipcMain.handle('upload-file', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({ properties: ['openFile'] });
   if (canceled || filePaths.length === 0) return { success: false };
@@ -240,11 +269,13 @@ ipcMain.handle('upload-file', async () => {
   const filename = path.basename(file);
   const content = fs.readFileSync(file, 'utf8');
   
-  // Save to local storage for reading
-  const localFilePath = path.join(__dirname, 'saved', filename);
-  fs.writeFileSync(localFilePath, content, 'utf8');
+  // Always encrypt files when saving (using default empty password for non-protected)
+  const encryptResult = await encryptAndSaveFile(filename, content, '');
+  if (!encryptResult.success) {
+    return { success: false, msg: 'Error encrypting and saving file: ' + encryptResult.error };
+  }
   
-  // Store original content in VFS for demonstration
+  // Store original content in VFS for demonstration (always plain text)
   const createResult = await vfsCreateFile(filename);
   if (!createResult.success) {
     return { success: false, msg: 'Error creating file in VFS: ' + createResult.error };
@@ -275,14 +306,16 @@ ipcMain.handle('upload-file', async () => {
   return { success: true };
 });
 
-// Create file handler - Store in both local storage and VFS
+// Create file handler - Store with encryption always
 ipcMain.handle('createFile', async (_, filename, content) => {
   try {
-    // Save to local storage for reading
-    const localFilePath = path.join(__dirname, 'saved', filename);
-    fs.writeFileSync(localFilePath, content, 'utf8');
+    // Always encrypt files when saving (using default empty password for non-protected)
+    const encryptResult = await encryptAndSaveFile(filename, content, '');
+    if (!encryptResult.success) {
+      return { success: false, msg: 'Error encrypting and saving file: ' + encryptResult.error };
+    }
     
-    // Create file in VFS for demonstration
+    // Create file in VFS for demonstration (always plain text)
     const createResult = await vfsCreateFile(filename);
     if (!createResult.success) {
       return { success: false, msg: 'Error creating file in VFS: ' + createResult.error };
@@ -321,7 +354,7 @@ ipcMain.handle('createFile', async (_, filename, content) => {
 ipcMain.handle('listFiles', async () => {
   const userFileList = userFiles[currentUser] || [];
   
-  // Get files from VFS
+  // Get files from VFS (for show)
   const vfsListResult = await vfsListFiles();
   if (!vfsListResult.success) {
     return { success: false, msg: 'Error listing VFS files: ' + vfsListResult.error };
@@ -381,7 +414,7 @@ ipcMain.handle('deleteFile', async (_, filename) => {
       fs.unlinkSync(localFilePath);
     }
     
-    // Delete from VFS
+    // Delete from VFS (for show)
     const vfsDeleteResult = await vfsDeleteFile(filename);
     if (!vfsDeleteResult.success) {
       console.log('Warning: Failed to delete from VFS, but local deletion succeeded');
@@ -402,7 +435,7 @@ ipcMain.handle('deleteFile', async (_, filename) => {
   }
 });
 
-// Get file content handler - Read from local storage, not VFS
+// Get file content handler - Always decrypt from saved folder
 ipcMain.handle('get-file-content', async (_, filename, password = null) => {
   const userFileList = userFiles[currentUser] || [];
   if (!userFileList.includes(filename)) {
@@ -410,38 +443,40 @@ ipcMain.handle('get-file-content', async (_, filename, password = null) => {
   }
   
   try {
-    // Read content from local saved directory instead of VFS
-    const localFilePath = path.join(__dirname, 'saved', filename);
+    const isProtected = fileMetadata[filename]?.protected || false;
     
-    if (!fs.existsSync(localFilePath)) {
-      return { success: false, msg: 'File not found in local storage' };
-    }
-
-    const originalContent = fs.readFileSync(localFilePath, 'utf8');
-
-    // If file is protected, encrypt for frontend display
-    if (fileMetadata[filename]?.protected) {
+    if (isProtected) {
       if (!password) {
         return { success: false, msg: 'File is password protected' };
       }
       
-      // Encrypt content for frontend display
-      const encryptResult = await encryptContentInMemory(originalContent, password);
-      if (!encryptResult.success) {
-        return { success: false, msg: 'Error encrypting content for display: ' + encryptResult.error };
+      // Verify password against stored hash
+      if (fileMetadata[filename].password && !bcrypt.compareSync(password, fileMetadata[filename].password)) {
+        return { success: false, msg: 'Invalid password' };
       }
       
-      return { success: true, content: encryptResult.content, encrypted: true };
+      // Decrypt using the user's password
+      const decryptResult = await decryptAndReadFile(filename, password);
+      if (!decryptResult.success) {
+        return { success: false, msg: 'Error decrypting protected file: ' + decryptResult.error };
+      }
+      
+      return { success: true, content: decryptResult.content, encrypted: false };
+    } else {
+      // For non-protected files, decrypt using empty password
+      const decryptResult = await decryptAndReadFile(filename, '');
+      if (!decryptResult.success) {
+        return { success: false, msg: 'Error decrypting file: ' + decryptResult.error };
+      }
+      
+      return { success: true, content: decryptResult.content, encrypted: false };
     }
-    
-    // Return original content for non-protected files
-    return { success: true, content: originalContent, encrypted: false };
   } catch (err) {
     return { success: false, msg: 'Error reading file: ' + err.message };
   }
 });
 
-// Save file handler - Save to both local storage and VFS
+// Save file handler - Always encrypt when saving
 ipcMain.handle('save-file', async (_, filename, content) => {
   const userFileList = userFiles[currentUser] || [];
   if (!userFileList.includes(filename)) {
@@ -454,11 +489,13 @@ ipcMain.handle('save-file', async (_, filename, content) => {
   }
 
   try {
-    // Save to local storage for reading
-    const localFilePath = path.join(__dirname, 'saved', filename);
-    fs.writeFileSync(localFilePath, content, 'utf8');
+    // Always encrypt when saving (using empty password for non-protected files)
+    const encryptResult = await encryptAndSaveFile(filename, content, '');
+    if (!encryptResult.success) {
+      return { success: false, msg: 'Error encrypting and saving file: ' + encryptResult.error };
+    }
     
-    // Also update VFS to keep it in sync
+    // Also update VFS to keep it in sync (for show)
     const vfsWriteResult = await vfsWriteFile(filename, content);
     if (!vfsWriteResult.success) {
       console.log('Warning: Failed to update VFS, but local save succeeded');
@@ -476,7 +513,7 @@ ipcMain.handle('save-file', async (_, filename, content) => {
   }
 });
 
-// Save protected file handler - Save to both local storage and VFS
+// Save protected file handler - Save to saved folder with proper encryption
 ipcMain.handle('save-protected-file', async (_, filename, content, password) => {
   const userFileList = userFiles[currentUser] || [];
   if (!userFileList.includes(filename)) {
@@ -492,31 +529,21 @@ ipcMain.handle('save-protected-file', async (_, filename, content, password) => 
   }
   
   try {
-    // Decrypt content first if it's encrypted (from frontend)
-    let plainContent = content;
-    try {
-      const decryptResult = await decryptContentInMemory(content, password);
-      if (decryptResult.success) {
-        plainContent = decryptResult.content;
-      }
-    } catch (e) {
-      // If decryption fails, assume content is already plain
-      console.log('Content appears to be plain text, saving as-is');
+    // Encrypt and save the content to saved folder
+    const encryptResult = await encryptAndSaveFile(filename, content, password);
+    if (!encryptResult.success) {
+      return { success: false, msg: 'Error encrypting and saving file: ' + encryptResult.error };
     }
     
-    // Save to local storage for reading
-    const localFilePath = path.join(__dirname, 'saved', filename);
-    fs.writeFileSync(localFilePath, plainContent, 'utf8');
-    
-    // Also update VFS to keep it in sync
-    const vfsWriteResult = await vfsWriteFile(filename, plainContent);
+    // Also update VFS to keep it in sync (for show - always plain text)
+    const vfsWriteResult = await vfsWriteFile(filename, content);
     if (!vfsWriteResult.success) {
       console.log('Warning: Failed to update VFS, but local save succeeded');
     }
     
     // Update file metadata
     if (fileMetadata[filename]) {
-      fileMetadata[filename].size = plainContent.length;
+      fileMetadata[filename].size = content.length;
       saveFileMetadata(fileMetadata);
     }
     
@@ -526,7 +553,8 @@ ipcMain.handle('save-protected-file', async (_, filename, content, password) => 
   }
 });
 
-// Protect file handler - Just update metadata (VFS content remains unchanged)
+// Protect file handler - Encrypt existing file with password
+// Protect file handler - Encrypt existing file with password
 ipcMain.handle('protect-file', async (event, filename, password) => {
   const userFileList = userFiles[currentUser] || [];
   if (!userFileList.includes(filename)) {
@@ -534,26 +562,38 @@ ipcMain.handle('protect-file', async (event, filename, password) => {
   }
   
   try {
-    // Check if file is already protected using metadata
+    // Check if file is already protected
     if (fileMetadata[filename] && fileMetadata[filename].protected) {
       return { success: false, msg: 'File is already protected' };
     }
 
-    // Just update metadata to reflect protected status
-    // VFS content remains as original plain text
+    // First decrypt the file using empty password (since non-protected files use empty password)
+    const decryptResult = await decryptAndReadFile(filename, '');
+    if (!decryptResult.success) {
+      return { success: false, msg: 'Error reading file to protect: ' + decryptResult.error };
+    }
+    
+    // Now encrypt and save the file with the user's password
+    const encryptResult = await encryptAndSaveFile(filename, decryptResult.content, password);
+    if (!encryptResult.success) {
+      return { success: false, msg: 'Error encrypting file: ' + encryptResult.error };
+    }
+    
+    // Update metadata to reflect protected status
     if (fileMetadata[filename]) {
       fileMetadata[filename].protected = true;
-      fileMetadata[filename].password = password; // Store password hash for verification
+      fileMetadata[filename].password = bcrypt.hashSync(password, 10); // Store password hash for verification
       saveFileMetadata(fileMetadata);
     }
     
+    console.log(`File ${filename} has been protected and encrypted`);
     return { success: true };
   } catch (err) {
     return { success: false, msg: `Error protecting file: ${err.message}` };
   }
 });
 
-// Unlock file handler - Read from local storage
+// Unlock file handler - Decrypt and read from saved folder
 ipcMain.handle('unlock-file', async (_, filename, password) => {
   const userFileList = userFiles[currentUser] || [];
   if (!userFileList.includes(filename)) {
@@ -561,22 +601,24 @@ ipcMain.handle('unlock-file', async (_, filename, password) => {
   }
   
   try {
-    // Verify password (you might want to store password hash in metadata)
+    // Verify the file is protected
     if (!fileMetadata[filename]?.protected) {
       return { success: false, msg: 'File is not protected' };
     }
 
-    // Read original content from local storage
-    const localFilePath = path.join(__dirname, 'saved', filename);
-    
-    if (!fs.existsSync(localFilePath)) {
-      return { success: false, msg: 'File not found in local storage' };
+    // Verify password against stored hash
+    if (fileMetadata[filename].password && !bcrypt.compareSync(password, fileMetadata[filename].password)) {
+      return { success: false, msg: 'Invalid password' };
     }
 
-    const originalContent = fs.readFileSync(localFilePath, 'utf8');
+    // Decrypt and read the file from saved folder
+    const decryptResult = await decryptAndReadFile(filename, password);
+    if (!decryptResult.success) {
+      return { success: false, msg: 'Error decrypting file: ' + decryptResult.error };
+    }
     
-    console.log('Successfully read file from local storage');
-    return { success: true, content: originalContent };
+    console.log('Successfully unlocked and decrypted file');
+    return { success: true, content: decryptResult.content };
   } catch (err) {
     console.error('Error unlocking file:', err);
     return { success: false, msg: `Error unlocking file: ${err.message}` };

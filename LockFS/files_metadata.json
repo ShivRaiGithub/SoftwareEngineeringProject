@@ -101,14 +101,6 @@
     "owner": "abcd",
     "storedInVFS": true
   },
-  "j.txt": {
-    "size": 5,
-    "createdAt": "2025-05-26T19:50:32.191Z",
-    "uploadedAt": "2025-05-26T19:50:32.191Z",
-    "protected": false,
-    "owner": "abcd",
-    "storedInVFS": true
-  },
   "y.txt": {
     "size": 11,
     "createdAt": "2025-05-26T20:01:04.567Z",
@@ -134,5 +126,40 @@
     "owner": "abcd",
     "storedInVFS": true,
     "password": "abcd"
+  },
+  "ww.txt": {
+    "size": 16,
+    "createdAt": "2025-05-27T03:28:31.632Z",
+    "uploadedAt": "2025-05-27T03:28:31.632Z",
+    "protected": true,
+    "owner": "abcd",
+    "storedInVFS": true,
+    "password": "$2a$10$jyRMBfhxiDrZ7dyqHTZ/h.EcFx27OCjK0icoyE1gl5A.gJeLjRtx6"
+  },
+  "rt.txt": {
+    "size": 11,
+    "createdAt": "2025-05-27T03:29:09.188Z",
+    "uploadedAt": "2025-05-27T03:29:09.188Z",
+    "protected": false,
+    "owner": "abcd",
+    "storedInVFS": true
+  },
+  "h.txt": {
+    "size": 16,
+    "createdAt": "2025-05-27T03:30:04.565Z",
+    "uploadedAt": "2025-05-27T03:30:04.565Z",
+    "protected": true,
+    "owner": "abcd",
+    "storedInVFS": true,
+    "password": "$2a$10$ZFaFCxYNtct4E5svl9nOoul.IQX9C1RRcnn6Y/MIBiOaWo8y8g93a"
+  },
+  "etc.txt": {
+    "size": 16,
+    "createdAt": "2025-05-27T03:31:01.946Z",
+    "uploadedAt": "2025-05-27T03:31:01.946Z",
+    "protected": true,
+    "owner": "abcd",
+    "storedInVFS": true,
+    "password": "$2a$10$6zbabqjMZdAvmn1pXuPoT.yVv2kG5cHQRrhfKz7P3uf084NUG/r.O"
   }
 }
